@@ -22,6 +22,7 @@ interface CommandArgs {
 interface Options extends GlobalOptions {
   filePath: string;
   overwrite?: boolean;
+  scope?: string;
 }
 
 class SpoAppAddCommand extends SpoCommand {
@@ -40,6 +41,7 @@ class SpoAppAddCommand extends SpoCommand {
   }
 
   public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+    const scope: string = (args.options.scope) ? args.options.scope.toLowerCase() : 'tenant';
     const overwrite: boolean = args.options.overwrite || false;
 
     if (this.debug) {
@@ -69,7 +71,7 @@ class SpoAppAddCommand extends SpoCommand {
 
         const fileName: string = path.basename(fullPath);
         const requestOptions: any = {
-          url: `${auth.site.url}/_api/web/tenantappcatalog/Add(overwrite=${(overwrite.toString().toLowerCase())}, url='${fileName}')`,
+          url: `${auth.site.url}/_api/web/${scope}appcatalog/Add(overwrite=${(overwrite.toString().toLowerCase())}, url='${fileName}')`,
           headers: Utils.getRequestHeaders({
             authorization: `Bearer ${auth.service.accessToken}`,
             accept: 'application/json;odata=nometadata',
@@ -117,6 +119,10 @@ class SpoAppAddCommand extends SpoCommand {
         description: 'Absolute or relative path to the solution package file to add to the app catalog'
       },
       {
+        option: '-s, --scope [tenant|site]',
+        description: 'Specify if the solution package should be added to the \'tenant\' or \'sitecollection\' scoped app catalog (default = tenant)'
+      },
+      {
         option: '--overwrite',
         description: 'Set to overwrite the existing package file'
       }
@@ -128,6 +134,14 @@ class SpoAppAddCommand extends SpoCommand {
 
   public validate(): CommandValidate {
     return (args: CommandArgs): boolean | string => {
+      // verify either 'tenant' or 'site' specified if scope provided
+      if (args.options.scope) {
+        const testScope: string = args.options.scope.toLowerCase();
+        if (!(testScope === 'tenant' || testScope === 'sitecollection')) {
+          return `Scope must be either 'tenant' or 'sitecollection' if specified`
+        }
+      }
+
       if (!args.options.filePath) {
         return 'Missing required option filePath';
       }
