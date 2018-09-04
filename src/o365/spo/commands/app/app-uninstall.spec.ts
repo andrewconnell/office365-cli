@@ -214,6 +214,60 @@ describe(commands.APP_UNINSTALL, () => {
     });
   });
 
+  it('uninstalls app from the specified site without prompting with confirmation argument when installed from site collection app catalog', (done) => {
+    sinon.stub(request, 'post').callsFake((opts) => {
+      requests.push(opts);
+
+      if (opts.url.indexOf('/common/oauth2/token') > -1) {
+        return Promise.resolve('abc');
+      }
+
+      if (opts.url.indexOf('/_api/contextinfo') > -1) {
+        return Promise.resolve({
+          FormDigestValue: 'abc'
+        });
+      }
+
+      if (opts.url.indexOf(`/_api/web/sitecollectionappcatalog/AvailableApps/GetById('b2307a39-e878-458b-bc90-03bc578531d6')/uninstall`) > -1) {
+        if (opts.headers.authorization &&
+          opts.headers.authorization.indexOf('Bearer ') === 0 &&
+          opts.headers.accept &&
+          opts.headers.accept.indexOf('application/json') === 0) {
+          return Promise.resolve();
+        }
+      }
+
+      return Promise.reject('Invalid request');
+    });
+
+    auth.site = new Site();
+    auth.site.connected = true;
+    auth.site.url = 'https://contoso.sharepoint.com';
+    cmdInstance.action = command.action();
+    cmdInstance.action({ options: { debug: false, id: 'b2307a39-e878-458b-bc90-03bc578531d6', siteUrl: 'https://contoso.sharepoint.com', scope: 'sitecollection', confirm: true } }, () => {
+      let correctRequestIssued = false;
+      requests.forEach(r => {
+        if (r.url.indexOf(`/_api/web/sitecollectionappcatalog/AvailableApps/GetById('b2307a39-e878-458b-bc90-03bc578531d6')/uninstall`) > -1 &&
+          r.headers.authorization &&
+          r.headers.authorization.indexOf('Bearer ') === 0 &&
+          r.headers.accept &&
+          r.headers.accept.indexOf('application/json') === 0) {
+          correctRequestIssued = true;
+        }
+      });
+      try {
+        assert(correctRequestIssued);
+        done();
+      }
+      catch (e) {
+        done(e);
+      }
+      finally {
+        Utils.restore(request.post);
+      }
+    });
+  });
+
   it('prompts before uninstalling an app when confirmation argument not passed', (done) => {
     auth.site = new Site();
     auth.site.connected = true;
@@ -572,8 +626,28 @@ describe(commands.APP_UNINSTALL, () => {
     assert.notEqual(actual, true);
   });
 
+  it('fails validation when invalid scope is specified', () => {
+    const actual = (command.validate() as CommandValidate)({ options: { id: '123', siteUrl: 'https://contoso.sharepoint.com', scope: 'foo' } });
+    assert.notEqual(actual, true);
+  });
+
   it('passes validation when the id and siteUrl options are specified', () => {
     const actual = (command.validate() as CommandValidate)({ options: { id: '123', siteUrl: 'https://contoso.sharepoint.com' } });
+    assert.equal(actual, true);
+  });
+
+  it('passes validation when no scope is specified', () => {
+    const actual = (command.validate() as CommandValidate)({ options: { id: '123', siteUrl: 'https://contoso.sharepoint.com' } });
+    assert.equal(actual, true);
+  });
+
+  it('passes validation when the scope is specified with \'tenant\'', () => {
+    const actual = (command.validate() as CommandValidate)({ options: { id: '123', siteUrl: 'https://contoso.sharepoint.com', scope: 'tenant' } });
+    assert.equal(actual, true);
+  });
+
+  it('passes validation when the scope is specified with \'sitecollection\'', () => {
+    const actual = (command.validate() as CommandValidate)({ options: { id: '123', siteUrl: 'https://contoso.sharepoint.com', scope: 'sitecollection' } });
     assert.equal(actual, true);
   });
 
