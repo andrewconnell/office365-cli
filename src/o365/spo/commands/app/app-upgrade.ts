@@ -21,6 +21,7 @@ interface CommandArgs {
 interface Options extends GlobalOptions {
   id: string;
   siteUrl: string;
+  scope?: string;
 }
 
 class AppUpgradeCommand extends SpoCommand {
@@ -33,6 +34,7 @@ class AppUpgradeCommand extends SpoCommand {
   }
 
   public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+    const scope: string = (args.options.scope) ? args.options.scope.toLowerCase() : 'tenant';
     const resource: string = Auth.getResourceFromUrl(args.options.siteUrl);
     let siteAccessToken: string = '';
 
@@ -59,7 +61,7 @@ class AppUpgradeCommand extends SpoCommand {
         }
 
         const requestOptions: any = {
-          url: `${args.options.siteUrl}/_api/web/tenantappcatalog/AvailableApps/GetById('${encodeURIComponent(args.options.id)}')/upgrade`,
+          url: `${args.options.siteUrl}/_api/web/${scope}appcatalog/AvailableApps/GetById('${encodeURIComponent(args.options.id)}')/upgrade`,
           headers: Utils.getRequestHeaders({
             authorization: `Bearer ${siteAccessToken}`,
             accept: 'application/json;odata=nometadata',
@@ -93,6 +95,10 @@ class AppUpgradeCommand extends SpoCommand {
         description: 'ID of the app to retrieve information for'
       },
       {
+        option: '-s, --scope [tenant|sitecollection]',
+        description: 'Specify the target app catalog: \'tenant\' or \'sitecollection\' (default = tenant)'
+      },
+      {
         option: '-s, --siteUrl <siteUrl>',
         description: 'Absolute URL of the site to install the app in'
       }
@@ -104,6 +110,14 @@ class AppUpgradeCommand extends SpoCommand {
 
   public validate(): CommandValidate {
     return (args: CommandArgs): boolean | string => {
+      // verify either 'tenant' or 'sitecollection' specified if scope provided
+      if (args.options.scope) {
+        const testScope: string = args.options.scope.toLowerCase();
+        if (!(testScope === 'tenant' || testScope === 'sitecollection')) {
+          return `Scope must be either 'tenant' or 'sitecollection' if specified`
+        }
+      }
+
       if (!args.options.id) {
         return 'Required parameter id missing';
       }
