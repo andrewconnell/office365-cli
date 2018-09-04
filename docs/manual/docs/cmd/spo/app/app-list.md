@@ -12,6 +12,7 @@ spo app list [options]
 
 Option|Description
 ------|-----------
+`-s, --scope [scope]`|Target app catalog. `tenant|sitecollection`. Default `tenant`.
 `--help`|output usage information
 `-o, --output [output]`|Output type. `json|text`. Default `text`
 `--verbose`|Runs command with verbose logging

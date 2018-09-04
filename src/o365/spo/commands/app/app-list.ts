@@ -2,6 +2,10 @@ import auth from '../../SpoAuth';
 import config from '../../../../config';
 import commands from '../../commands';
 import * as request from 'request-promise-native';
+import {
+  CommandOption,
+  CommandValidate
+} from '../../../../Command';
 import SpoCommand from '../../SpoCommand';
 import { AppMetadata } from './AppMetadata';
 import Utils from '../../../../Utils';
@@ -10,7 +14,11 @@ import GlobalOptions from '../../../../GlobalOptions';
 const vorpal: Vorpal = require('../../../../vorpal-init');
 
 interface CommandArgs {
-  options: GlobalOptions;
+  options: Options;
+}
+
+interface Options extends GlobalOptions {
+  scope?: string;
 }
 
 class AppListCommand extends SpoCommand {
@@ -27,6 +35,7 @@ class AppListCommand extends SpoCommand {
   }
 
   public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+    const scope: string = (args.options.scope) ? args.options.scope.toLowerCase() : 'tenant';
     auth
       .ensureAccessToken(auth.service.resource, cmd, this.debug)
       .then((accessToken: string): request.RequestPromise => {
@@ -39,7 +48,7 @@ class AppListCommand extends SpoCommand {
         }
 
         const requestOptions: any = {
-          url: `${auth.site.url}/_api/web/tenantappcatalog/AvailableApps`,
+          url: `${auth.site.url}/_api/web/${scope}appcatalog/AvailableApps`,
           headers: Utils.getRequestHeaders({
             authorization: `Bearer ${accessToken}`,
             accept: 'application/json;odata=nometadata'
@@ -85,6 +94,32 @@ class AppListCommand extends SpoCommand {
         }
         cb();
       }, (rawRes: any): void => this.handleRejectedODataPromise(rawRes, cmd, cb));
+  }
+
+  public options(): CommandOption[] {
+    const options: CommandOption[] = [
+      {
+        option: '-s, --scope [tenant|sitecollection]',
+        description: 'Specify the target app catalog: \'tenant\' or \'sitecollection\' (default = tenant)'
+      }
+    ];
+
+    const parentOptions: CommandOption[] = super.options();
+    return options.concat(parentOptions);
+  }
+
+  public validate(): CommandValidate {
+    return (args: CommandArgs): boolean | string => {
+      // verify either 'tenant' or 'sitecollection' specified if scope provided
+      if (args.options.scope) {
+        const testScope: string = args.options.scope.toLowerCase();
+        if (!(testScope === 'tenant' || testScope === 'sitecollection')) {
+          return `Scope must be either 'tenant' or 'sitecollection' if specified`
+        }
+      }
+
+      return true;
+    };
   }
 
   public commandHelp(args: {}, log: (help: string) => void): void {
