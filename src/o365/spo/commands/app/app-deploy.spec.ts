@@ -277,9 +277,91 @@ describe(commands.APP_DEPLOY, () => {
     });
   });
 
+  it('deploys app in the sitecollection app catalog', (done) => {
+    sinon.stub(request, 'get').callsFake((opts) => {
+      if (opts.url.indexOf(`search/query?querytext='contentclass:STS_Site%20AND%20SiteTemplate:APPCATALOG'`) > -1) {
+        return Promise.resolve({
+          PrimaryQueryResult: {
+            RelevantResults: {
+              RowCount: 1,
+              Table: {
+                Rows: [{
+                  Cells: [
+                    {
+                      Key: 'ID',
+                      Value: '1',
+                      ValueType: 'Number'
+                    },
+                    {
+                      Key: 'SPWebUrl',
+                      Value: 'https://contoso.sharepoint.com/sites/apps',
+                      ValueType: 'String'
+                    }
+                  ]
+                }]
+              }
+            }
+          }
+        } as SearchResponse);
+      }
+
+      return Promise.reject('Invalid request');
+    });
+    sinon.stub(request, 'post').callsFake((opts) => {
+      requests.push(opts);
+
+      if (opts.url.indexOf('/_api/contextinfo') > -1) {
+        return Promise.resolve({
+          FormDigestValue: 'abc'
+        });
+      }
+
+      if (opts.url.indexOf(`/_api/web/sitecollectionappcatalog/AvailableApps/GetById('b2307a39-e878-458b-bc90-03bc578531d6')/deploy`) > -1) {
+        if (opts.headers.authorization &&
+          opts.headers.authorization.indexOf('Bearer ') === 0 &&
+          opts.headers.accept &&
+          opts.headers.accept.indexOf('application/json') === 0) {
+          return Promise.resolve();
+        }
+      }
+
+      return Promise.reject('Invalid request');
+    });
+
+    auth.site = new Site();
+    auth.site.connected = true;
+    auth.site.url = 'https://contoso.sharepoint.com';
+    cmdInstance.action = command.action();
+    cmdInstance.action({ options: { debug: false, scope: 'sitecollection', id: 'b2307a39-e878-458b-bc90-03bc578531d6' } }, () => {
+      let correctRequestIssued = false;
+      requests.forEach(r => {
+        if (r.url.indexOf(`/_api/web/sitecollectionappcatalog/AvailableApps/GetById('b2307a39-e878-458b-bc90-03bc578531d6')/deploy`) > -1 &&
+          r.headers.authorization &&
+          r.headers.authorization.indexOf('Bearer ') === 0 &&
+          r.headers.accept &&
+          r.headers.accept.indexOf('application/json') === 0) {
+          correctRequestIssued = true;
+        }
+      });
+      try {
+        assert(correctRequestIssued);
+        done();
+      }
+      catch (e) {
+        done(e);
+      }
+      finally {
+        Utils.restore([
+          request.post,
+          request.get
+        ]);
+      }
+    });
+  });
+
   it('deploys app specified using its name in the tenant app catalog', (done) => {
     sinon.stub(request, 'get').callsFake((opts) => {
-      if (opts.url.indexOf(`/_api/web/getfolderbyserverrelativeurl('AppCatalog')/files('solution.sppkg')?$select=UniqueId`) > -1) {
+      if (opts.url.indexOf(`/_api/web/tenantappcatalog/files('solution.sppkg')?$select=UniqueId`) > -1) {
         return Promise.resolve({
           UniqueId: 'b2307a39-e878-458b-bc90-03bc578531d6'
         });
@@ -348,9 +430,80 @@ describe(commands.APP_DEPLOY, () => {
     });
   });
 
+  it('deploys app specified using its name in the sitecollection app catalog', (done) => {
+    sinon.stub(request, 'get').callsFake((opts) => {
+      if (opts.url.indexOf(`/_api/web/sitecollectionappcatalog/files('solution.sppkg')?$select=UniqueId`) > -1) {
+        return Promise.resolve({
+          UniqueId: 'b2307a39-e878-458b-bc90-03bc578531d6'
+        });
+      }
+
+      if (opts.url.indexOf(`search/query?querytext='contentclass:STS_Site%20AND%20SiteTemplate:APPCATALOG'`) > -1) {
+        return Promise.resolve({
+          PrimaryQueryResult: {
+            RelevantResults: {
+              RowCount: 1,
+              Table: {
+                Rows: [{
+                  Cells: [
+                    {
+                      Key: 'ID',
+                      Value: '1',
+                      ValueType: 'Number'
+                    },
+                    {
+                      Key: 'SPWebUrl',
+                      Value: 'https://contoso.sharepoint.com/sites/apps',
+                      ValueType: 'String'
+                    }
+                  ]
+                }]
+              }
+            }
+          }
+        } as SearchResponse);
+      }
+
+      return Promise.reject('Invalid request');
+    });
+    sinon.stub(request, 'post').callsFake((opts) => {
+      requests.push(opts);
+
+      if (opts.url.indexOf('/_api/contextinfo') > -1) {
+        return Promise.resolve({
+          FormDigestValue: 'abc'
+        });
+      }
+
+      if (opts.url.indexOf(`/_api/web/sitecollectionappcatalog/AvailableApps/GetById('b2307a39-e878-458b-bc90-03bc578531d6')/deploy`) > -1) {
+        if (opts.headers.authorization &&
+          opts.headers.authorization.indexOf('Bearer ') === 0 &&
+          opts.headers.accept &&
+          opts.headers.accept.indexOf('application/json') === 0) {
+          return Promise.resolve();
+        }
+      }
+
+      return Promise.reject('Invalid request');
+    });
+
+    auth.site = new Site();
+    auth.site.connected = true;
+    auth.site.url = 'https://contoso.sharepoint.com';
+    cmdInstance.action = command.action();
+    cmdInstance.action({ options: { debug: false, scope: 'sitecollection', name: 'solution.sppkg' } }, () => {
+      try {
+        done();
+      }
+      catch (e) {
+        done(e);
+      }
+    });
+  });
+
   it('deploys app specified using its name in the tenant app catalog (debug)', (done) => {
     sinon.stub(request, 'get').callsFake((opts) => {
-      if (opts.url.indexOf(`/_api/web/getfolderbyserverrelativeurl('AppCatalog')/files('solution.sppkg')?$select=UniqueId`) > -1) {
+      if (opts.url.indexOf(`/_api/web/tenantappcatalog/files('solution.sppkg')?$select=UniqueId`) > -1) {
         return Promise.resolve({
           UniqueId: 'b2307a39-e878-458b-bc90-03bc578531d6'
         });
@@ -979,7 +1132,7 @@ describe(commands.APP_DEPLOY, () => {
 
   it('correctly handles failure when app specified by its name not found in app catalog', (done) => {
     sinon.stub(request, 'get').callsFake((opts) => {
-      if (opts.url.indexOf(`/_api/web/getfolderbyserverrelativeurl('AppCatalog')/files('solution.sppkg')?$select=UniqueId`) > -1) {
+      if (opts.url.indexOf(`/_api/web/tenantappcatalog/files('solution.sppkg')?$select=UniqueId`) > -1) {
         return Promise.reject({
           error: {
             "odata.error": {
@@ -1157,6 +1310,11 @@ describe(commands.APP_DEPLOY, () => {
     assert.notEqual(actual, true);
   });
 
+  it('fails validation when the scope is specified invalid option', () => {
+    const actual = (command.validate() as CommandValidate)({ options: { name: 'solution', scope: 'foo' } });
+    assert.notEqual(actual, true);
+  });
+
   it('passes validation when the id is specified and the appCatalogUrl is not', () => {
     const actual = (command.validate() as CommandValidate)({ options: { id: 'b2307a39-e878-458b-bc90-03bc578531d6' } });
     assert.equal(actual, true);
@@ -1179,6 +1337,11 @@ describe(commands.APP_DEPLOY, () => {
 
   it('passes validation when the name is specified without the extension', () => {
     const actual = (command.validate() as CommandValidate)({ options: { name: 'solution' } });
+    assert.equal(actual, true);
+  });
+
+  it('passes validation when the scope is specified with \'sitecollection\'', () => {
+    const actual = (command.validate() as CommandValidate)({ options: { name: 'solution', scope: 'sitecollection' } });
     assert.equal(actual, true);
   });
 

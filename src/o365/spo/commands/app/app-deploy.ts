@@ -23,6 +23,7 @@ interface Options extends GlobalOptions {
   name?: string;
   appCatalogUrl?: string;
   skipFeatureDeployment?: boolean;
+  scope?: string;
 }
 
 class AppDeployCommand extends SpoCommand {
@@ -47,6 +48,7 @@ class AppDeployCommand extends SpoCommand {
     let appCatalogUrl: string = '';
     let accessToken: string = '';
     let appId: string = '';
+    const scope: string = (args.options.scope) ? args.options.scope.toLowerCase() : 'tenant';
 
     auth
       .ensureAccessToken(auth.service.resource, cmd, this.debug)
@@ -125,7 +127,7 @@ class AppDeployCommand extends SpoCommand {
           }
 
           const requestOptions: any = {
-            url: `${appCatalogUrl}/_api/web/getfolderbyserverrelativeurl('AppCatalog')/files('${args.options.name}')?$select=UniqueId`,
+            url: `${appCatalogUrl}/_api/web/${scope}appcatalog/files('${args.options.name}')?$select=UniqueId`,
             headers: Utils.getRequestHeaders({
               authorization: `Bearer ${accessToken}`,
               accept: 'application/json;odata=nometadata'
@@ -165,7 +167,7 @@ class AppDeployCommand extends SpoCommand {
         }
 
         const requestOptions: any = {
-          url: `${appCatalogUrl}/_api/web/tenantappcatalog/AvailableApps/GetById('${appId}')/deploy`,
+          url: `${appCatalogUrl}/_api/web/${scope}appcatalog/AvailableApps/GetById('${appId}')/deploy`,
           headers: Utils.getRequestHeaders({
             authorization: `Bearer ${accessToken}`,
             accept: 'application/json;odata=nometadata',
@@ -216,6 +218,10 @@ class AppDeployCommand extends SpoCommand {
       {
         option: '--skipFeatureDeployment',
         description: 'If the app supports tenant-wide deployment, deploy it to the whole tenant'
+      },
+      {
+        option: '-s, --scope [tenant|sitecollection]',
+        description: 'Specify the target app catalog: \'tenant\' or \'sitecollection\' (default = tenant)'
       }
     ];
 
@@ -225,6 +231,14 @@ class AppDeployCommand extends SpoCommand {
 
   public validate(): CommandValidate {
     return (args: CommandArgs): boolean | string => {
+      // verify either 'tenant' or 'site' specified if scope provided
+      if (args.options.scope) {
+        const testScope: string = args.options.scope.toLowerCase();
+        if (!(testScope === 'tenant' || testScope === 'sitecollection')) {
+          return `Scope must be either 'tenant' or 'sitecollection' if specified`
+        }
+      }
+
       if (!args.options.id && !args.options.name) {
         return 'Specify either the id or the name';
       }
@@ -271,6 +285,10 @@ class AppDeployCommand extends SpoCommand {
     Deploy the specified app in the tenant app catalog. Try to resolve the URL
     of the tenant app catalog automatically.
       ${chalk.grey(config.delimiter)} ${commands.APP_DEPLOY} --id 058140e3-0e37-44fc-a1d3-79c487d371a3
+
+    Deploy the specified app in the site collection app catalog. Try to resolve the URL
+    of the tenant app catalog automatically.
+      ${chalk.grey(config.delimiter)} ${commands.APP_DEPLOY} --id 058140e3-0e37-44fc-a1d3-79c487d371a3 --scope sitecollection
 
     Deploy the app with the specified name in the tenant app catalog.
     Try to resolve the URL of the tenant app catalog automatically.
