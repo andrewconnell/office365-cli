@@ -15,6 +15,7 @@ Option|Description
 `--help`|output usage information
 `-i, --id <id>`|ID of the app to retract. Needs to be available in the tenant app catalog.
 `-u, --appCatalogUrl [appCatalogUrl]`|(optional) URL of the tenant app catalog site. If not specified, the CLI will try to resolve it automatically
+`-s, --scope [scope]`|Target app catalog. `tenant|sitecollection`. Default `tenant`
 `--confirm`|Don't prompt for confirming retracting the app from the tenant app catalog
 `-o, --output [output]`|Output type. `json|text`. Default `text`
 `--verbose`|Runs command with verbose logging
