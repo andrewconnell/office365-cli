@@ -21,6 +21,7 @@ interface Options extends GlobalOptions {
   id: string;
   appCatalogUrl?: string;
   confirm?: boolean;
+  scope?: string;
 }
 
 class AppRemoveCommand extends SpoCommand {
@@ -40,6 +41,7 @@ class AppRemoveCommand extends SpoCommand {
   }
 
   public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+    const scope: string = (args.options.scope) ? args.options.scope.toLowerCase() : 'tenant';
     let appCatalogUrl: string = '';
 
     const removeApp: () => void = (): void => {
@@ -47,42 +49,48 @@ class AppRemoveCommand extends SpoCommand {
         .ensureAccessToken(auth.service.resource, cmd, this.debug)
         .then((accessToken: string): Promise<string> => {
           return new Promise<string>((resolve: (appCatalogUrl: string) => void, reject: (error: any) => void): void => {
-            if (args.options.appCatalogUrl) {
-              resolve(args.options.appCatalogUrl);
+            // if scope = 'sitecollection', resolve to current site... otherwise get app catalogURL
+            if (scope === 'sitecollection') {
+              resolve(auth.site.url);
             }
             else {
-              this
-                .getTenantAppCatalogUrl(cmd, this.debug)
-                .then((appCatalogUrl: string): void => {
-                  resolve(appCatalogUrl);
-                }, (error: any): void => {
-                  if (this.debug) {
-                    cmd.log('Error');
-                    cmd.log(error);
-                    cmd.log('');
-                  }
-
-                  cmd.log('CLI could not automatically determine the URL of the tenant app catalog');
-                  cmd.log('What is the absolute URL of your tenant app catalog site');
-                  cmd.prompt({
-                    type: 'input',
-                    name: 'appCatalogUrl',
-                    message: '? ',
-                  }, (result: { appCatalogUrl?: string }): void => {
-                    if (!result.appCatalogUrl) {
-                      reject(`Couldn't determine tenant app catalog URL`);
+              if (args.options.appCatalogUrl) {
+                resolve(args.options.appCatalogUrl);
+              }
+              else {
+                this
+                  .getTenantAppCatalogUrl(cmd, this.debug)
+                  .then((appCatalogUrl: string): void => {
+                    resolve(appCatalogUrl);
+                  }, (error: any): void => {
+                    if (this.debug) {
+                      cmd.log('Error');
+                      cmd.log(error);
+                      cmd.log('');
                     }
-                    else {
-                      let isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(result.appCatalogUrl);
-                      if (isValidSharePointUrl === true) {
-                        resolve(result.appCatalogUrl);
+
+                    cmd.log('CLI could not automatically determine the URL of the tenant app catalog');
+                    cmd.log('What is the absolute URL of your tenant app catalog site');
+                    cmd.prompt({
+                      type: 'input',
+                      name: 'appCatalogUrl',
+                      message: '? ',
+                    }, (result: { appCatalogUrl?: string }): void => {
+                      if (!result.appCatalogUrl) {
+                        reject(`Couldn't determine tenant app catalog URL`);
                       }
                       else {
-                        reject(isValidSharePointUrl);
+                        let isValidSharePointUrl: boolean | string = SpoCommand.isValidSharePointUrl(result.appCatalogUrl);
+                        if (isValidSharePointUrl === true) {
+                          resolve(result.appCatalogUrl);
+                        }
+                        else {
+                          reject(isValidSharePointUrl);
+                        }
                       }
-                    }
+                    });
                   });
-                });
+              }
             }
           });
         })
@@ -102,7 +110,7 @@ class AppRemoveCommand extends SpoCommand {
           }
 
           const requestOptions: any = {
-            url: `${appCatalogUrl}/_api/web/tenantappcatalog/AvailableApps/GetById('${encodeURIComponent(args.options.id)}')/remove`,
+            url: `${appCatalogUrl}/_api/web/${scope}appcatalog/AvailableApps/GetById('${encodeURIComponent(args.options.id)}')/remove`,
             headers: Utils.getRequestHeaders({
               authorization: `Bearer ${accessToken}`,
               accept: 'application/json;odata=nometadata'
@@ -153,6 +161,10 @@ class AppRemoveCommand extends SpoCommand {
         description: '(optional) URL of the tenant app catalog site. If not specified, the CLI will try to resolve it automatically'
       },
       {
+        option: '-s, --scope [tenant|sitecollection]',
+        description: 'Specify the target app catalog: \'tenant\' or \'sitecollection\' (default = tenant)'
+      },
+      {
         option: '--confirm',
         description: 'Don\'t prompt for confirming removing the app'
       }
@@ -164,6 +176,14 @@ class AppRemoveCommand extends SpoCommand {
 
   public validate(): CommandValidate {
     return (args: CommandArgs): boolean | string => {
+      // verify either 'tenant' or 'sitecollection' specified if scope provided
+      if (args.options.scope) {
+        const testScope: string = args.options.scope.toLowerCase();
+        if (!(testScope === 'tenant' || testScope === 'sitecollection')) {
+          return `Scope must be either 'tenant' or 'sitecollection' if specified`
+        }
+      }
+
       if (!args.options.id) {
         return 'Required parameter id missing';
       }
