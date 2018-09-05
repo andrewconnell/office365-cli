@@ -22,6 +22,7 @@ interface Options extends GlobalOptions {
   id?: string;
   name?: string;
   appCatalogUrl?: string;
+  scope?: string;
 }
 
 class AppGetCommand extends SpoCommand {
@@ -46,6 +47,8 @@ class AppGetCommand extends SpoCommand {
   }
 
   public commandAction(cmd: CommandInstance, args: CommandArgs, cb: () => void): void {
+    const scope: string = (args.options.scope) ? args.options.scope.toLowerCase() : 'tenant';
+
     auth
       .ensureAccessToken(auth.service.resource, cmd, this.debug)
       .then((accessToken: string): request.RequestPromise | Promise<string> => {
@@ -112,7 +115,6 @@ class AppGetCommand extends SpoCommand {
               if (this.verbose) {
                 cmd.log(`Looking up app id for app named ${args.options.name}...`);
               }
-
               const requestOptions: any = {
                 url: `${appCatalogUrl}/_api/web/getfolderbyserverrelativeurl('AppCatalog')/files('${args.options.name}')?$select=UniqueId`,
                 headers: Utils.getRequestHeaders({
@@ -147,7 +149,7 @@ class AppGetCommand extends SpoCommand {
         }
 
         const requestOptions: any = {
-          url: `${auth.site.url}/_api/web/tenantappcatalog/AvailableApps/GetById('${encodeURIComponent(appId)}')`,
+          url: `${auth.site.url}/_api/web/${scope}appcatalog/AvailableApps/GetById('${encodeURIComponent(appId)}')`,
           headers: Utils.getRequestHeaders({
             authorization: `Bearer ${auth.service.accessToken}`,
             accept: 'application/json;odata=nometadata'
@@ -189,6 +191,10 @@ class AppGetCommand extends SpoCommand {
       {
         option: '-u, --appCatalogUrl [appCatalogUrl]',
         description: 'URL of the tenant app catalog site. If not specified, the CLI will try to resolve it automatically'
+      },
+      {
+        option: '-s, --scope [tenant|sitecollection]',
+        description: 'Specify the target app catalog: \'tenant\' or \'sitecollection\' (default = tenant)'
       }
     ];
 

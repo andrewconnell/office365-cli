@@ -16,6 +16,7 @@ Option|Description
 `-i, --id [id]`|ID of the app to retrieve information for. Specify the `id` or the `name` but not both
 `-n, --name [name]`|Name of the app to retrieve information for. Specify the `id` or the `name` but not both
 `-u, --appCatalogUrl [appCatalogUrl]`|URL of the tenant app catalog site. If not specified, the CLI will try to resolve it automatically
+`-s, --scope [scope]`|Target app catalog. `tenant|sitecollection`. Default `tenant`.
 `-o, --output [output]`|Output type. `json|text`. Default `text`
 `--verbose`|Runs command with verbose logging
 `--debug`|Runs command with debug logging
