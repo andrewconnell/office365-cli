@@ -18,6 +18,7 @@ interface CommandArgs {
 }
 
 interface Options extends GlobalOptions {
+  siteUrl?: string;
   scope?: string;
 }
 
@@ -99,8 +100,12 @@ class AppListCommand extends SpoCommand {
   public options(): CommandOption[] {
     const options: CommandOption[] = [
       {
-        option: '-s, --scope [tenant|sitecollection]',
-        description: 'Specify the target app catalog: \'tenant\' or \'sitecollection\' (default = tenant)'
+        option: '-c, --scope [tenant|sitecollection]',
+        description: '(optional) Specify the target app catalog: \'tenant\' or \'sitecollection\' (default = tenant)'
+      },
+      {
+        option: '-s, --siteUrl <siteUrl>',
+        description: '(optional) Absolute URL of the site to install the app in'
       }
     ];
 
@@ -115,6 +120,11 @@ class AppListCommand extends SpoCommand {
         const testScope: string = args.options.scope.toLowerCase();
         if (!(testScope === 'tenant' || testScope === 'sitecollection')) {
           return `Scope must be either 'tenant' or 'sitecollection' if specified`
+        }
+
+        // verify if scope=sitecollection, URL provided
+        if (!(testScope === 'sitecollection' && args.options.siteUrl)){
+          return `SiteUrl must be specified if scope is set to 'sitecollection'`;
         }
       }
 
